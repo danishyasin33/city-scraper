@@ -15,50 +15,69 @@ def main():
         citySoup = BeautifulSoup(cityPage.content, 'html.parser')
         print(cityURL)
         centerFont = citySoup.select('div.table > center strong')
-        centerFont = centerFont[0].get_text()
-
+        if centerFont:
+            centerFont = centerFont[0].get_text()
+        else:
+            print('Result Page Not Found')
+            continue
         isStreets = 'List of streets in'
         if isStreets in centerFont:  # some pages have streets immediately
-            print("Street List Found at: " + cityURL)
             streetList = citySoup.select('div.listmain li')
-            for street in streetList:
-                streetText = street.get_text()
-                file.write(streetText + '\n')
-
+            if streetList:
+                print("Street List Found at: " + cityURL)
+                for street in streetList:
+                    streetText = street.get_text()
+                    file.write(streetText + '\n')
+            else:
+                print('Street List not Found at: ' + cityURL)
+                continue
         else:
             cityList = citySoup.select('div.listmain li a')
+            if cityList:
+                for city in cityList:
+                    distURL = cityURL.rstrip('index.html') + city['href']
+                    distPage = requests.get(distURL)
+                    distSoup = BeautifulSoup(distPage.content, 'html.parser')
 
-            for city in cityList:
-                distURL = cityURL.rstrip('index.html') + city['href']
-                distPage = requests.get(distURL)
-                distSoup = BeautifulSoup(distPage.content, 'html.parser')
+                    centerFont = distSoup.select('div.table > center strong')
+                    if not centerFont:
+                        print('Result Page Not Found')
+                        continue
+                    centerFont = centerFont[0].get_text()
 
-                centerFont = distSoup.select('div.table > center strong')
-                centerFont = centerFont[0].get_text()
+                    isStreets = 'List of streets in'
+                    if isStreets in centerFont:  # some pages have streets immediately
 
-                isStreets = 'List of streets in'
-                if isStreets in centerFont:  # some pages have streets immediately
-                    print("Street List Found at: " + distURL)
-                    streetList = distSoup.select('div.listmain li')
+                        streetList = distSoup.select('div.listmain li')
+                        if streetList:
+                            print("Street List Found at: " + distURL)
+                            for street in streetList:
+                                streetText = street.get_text()
+                                file.write(streetText + '\n')
+                        else:
+                            print('Street List not Found at: ' + cityURL)
+                            continue
+                    else:   # some require another iteration
+                        localities = distSoup.select('div.listmain li a')
+                        for local in localities:
+                            localURL = distURL.rstrip(
+                                'index.html') + local['href']
+                            localPage = requests.get(localURL)
+                            localSoup = BeautifulSoup(
+                                localPage.content, 'html.parser')
 
-                    for street in streetList:
-                        streetText = street.get_text()
-                        file.write(streetText + '\n')
-
-                else:   # some require another iteration
-                    localities = distSoup.select('div.listmain li a')
-                    for local in localities:
-                        localURL = distURL.rstrip('index.html') + local['href']
-                        localPage = requests.get(localURL)
-                        localSoup = BeautifulSoup(
-                            localPage.content, 'html.parser')
-
-                        print("Street List Found at: " + localURL)
-                        streetList = localSoup.select('div.listmain li')
-                        for street in streetList:
-                            streetText = street.get_text()
-                            file.write(streetText + '\n')
-            exit()
+                            streetList = localSoup.select('div.listmain li')
+                            if streetList:
+                                print("Street List Found at: " + localURL)
+                                for street in streetList:
+                                    streetText = street.get_text()
+                                    file.write(streetText + '\n')
+                            else:
+                                print('Street List not Found at: ' + cityURL)
+                                continue
+            else:
+                print('City list not found at: ' + cityURL)
+                continue
     file.close()
 
 
